@@ -1,0 +1,121 @@
+<html style="--vsc-domain: &quot;www.lia.ufc.br&quot;;">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #005f73;
+  }
+</style>
+<title>Hello CG</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.0/math.js"></script>
+<script src="audio.js"></script>
+<script src="objloader.js"></script> <!-- define loadOBJ -->
+<script src="webgl.js"></script>   <!-- define gl, prog, laneX, trackColors, drawObject -->
+<script src="notes.js"></script>   <!-- usa laneX, trackColors, drawObject -->
+<script src="input.js"></script>   <!-- usa notes, checkHit, score -->
+<script id="vertex-shader" type="notjs">
+attribute vec4 position;
+attribute vec2 texCoord;
+uniform mat4 transfproj;
+uniform mat4 transf;
+
+varying vec2 v_texCoord;
+
+attribute vec3 normal;
+varying vec3 v_normal;
+
+uniform vec3 lightPos;
+varying vec3 pointToLight;
+
+uniform vec3 camPos;
+varying vec3 pointToCam;
+
+void main()
+{
+    pointToLight = lightPos - position.xyz;
+    pointToCam = camPos - position.xyz;
+
+    v_normal = (transf*vec4(normal, 0.0)).xyz;
+    
+	v_texCoord = texCoord;
+	gl_Position = transfproj*position;
+}
+</script>
+<script id="frag-shader" type="notjs">
+precision mediump float;
+
+uniform sampler2D tex;
+uniform bool useTexture;
+uniform vec3 solidColor;
+
+varying vec2 v_texCoord;
+
+varying vec3 v_normal;
+uniform vec3 lightDirection;
+uniform vec3 lightColor;
+
+varying vec3 pointToLight;
+varying vec3 pointToCam;
+
+void main()
+{
+    vec3 pToLight = normalize(pointToLight);
+    vec3 pToCam = normalize(pointToCam);
+    vec3 halfVec = normalize(pToCam + pToLight);
+
+    vec3 v_normal_n = normalize(v_normal);
+    vec3 lightDirection_n = normalize(-lightDirection);
+
+    float lightd = max(dot(v_normal_n, lightDirection_n), 0.0);
+    float lightp = max(dot(v_normal_n, pToLight), 0.0);
+    float lighte = max(dot(v_normal_n, halfVec), 0.0);
+
+    vec3 baseColor;
+    float alpha;
+    if (useTexture) {
+        vec4 s = texture2D(tex, v_texCoord);
+        baseColor = s.rgb;
+        alpha = s.a;
+    } else {
+        baseColor = solidColor;
+        alpha = 1.0;
+    }
+
+    gl_FragColor.rgb = 0.5*lightColor*baseColor;
+    gl_FragColor.rgb += 0.2*lightColor*lightd*baseColor;
+    gl_FragColor.rgb += 0.3*lightColor*lightp*baseColor;
+    gl_FragColor.rgb += lightColor*pow(lighte, 500.0)*baseColor;
+
+    gl_FragColor.a = alpha;
+}
+</script></head>
+
+<body onload="init()" style="margin:0;position:relative;background:#000">
+
+<canvas id="glcanvas1" width="1920" height="1080"></canvas>
+
+<div id="hud" style="
+    position: absolute; top: 20px; left: 50%;
+    transform: translateX(-50%);
+    color: white; font-size: 24px;
+    font-family: sans-serif; pointer-events: none;
+">Pontos: <span id="score-display">0</span></div>
+
+<div id="feedback-container" style="
+    position: absolute; bottom: 120px; left: 0; width: 100%;
+    display: flex; justify-content: space-around;
+    pointer-events: none;
+">
+    <div id="fb-0" style="color:#4a9eff;font-size:28px;font-family:sans-serif;opacity:0">●</div>
+    <div id="fb-1" style="color:#22cc66;font-size:28px;font-family:sans-serif;opacity:0">●</div>
+    <div id="fb-2" style="color:#cccccc;font-size:28px;font-family:sans-serif;opacity:0">●</div>
+    <div id="fb-3" style="color:#ff4444;font-size:28px;font-family:sans-serif;opacity:0">●</div>
+</div>
+
+</body></html>
